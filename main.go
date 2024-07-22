@@ -229,7 +229,7 @@ func onlyOwnerHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("OnlyOwnerHandler X-Role:", r.Header.Get("X-Role"))
 	if r.Header.Get("X-Role") != "owner" {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("Only Owner Ednpoint, you are not autenticated!"))
+		w.Write([]byte("FORBIDDEN, you have not the OWNER role!"))
 		return
 	}
 	w.Write([]byte("Only Owner Ednpoint, you are autenticated!"))
