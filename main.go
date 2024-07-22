@@ -70,7 +70,7 @@ func loggingRequest(next http.Handler) http.Handler {
 func validateToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authorization := r.Header.Get("Authorization")
-		log.Println("Auth::Authorization: ", authorization)
+		log.Println("Authorization Header: ", authorization)
 		if !strings.HasPrefix(authorization, "Bearer ") {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
@@ -164,6 +164,7 @@ func validateToken(next http.Handler) http.Handler {
 		log.Println("Upn: ", claims.Upn)
 		// End the background refresh goroutine when it's no longer needed.
 		cancel()
+		r.Header.Set("X-Role", claims.Roles[0])
 		next.ServeHTTP(w, r)
 	})
 }
@@ -192,12 +193,13 @@ func main() {
 	)
 	// Create private router
 	privateRouter := http.NewServeMux()
-	privateRouter.HandleFunc("GET /", secureHandler)
+	privateRouter.HandleFunc("GET /all", secureHandler)
+	privateRouter.HandleFunc("GET /owner", onlyOwnerHandler)
 	// Create public router
 	publicRouter := http.NewServeMux()
 	publicRouter.HandleFunc("GET /nosecure", homeHandler)
 	// Add private router to public router with validate token middleware
-	publicRouter.Handle("GET /secure", validateToken(privateRouter))
+	publicRouter.Handle("GET /secure/", http.StripPrefix("/secure", validateToken(privateRouter)))
 
 	// Base router
 	baseRouter := http.NewServeMux()
@@ -219,5 +221,16 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Private Handler
 func secureHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("SecureHandler X-Role:", r.Header.Get("X-Role"))
 	w.Write([]byte("Secure Ednpoint, you are autenticated!"))
+}
+
+func onlyOwnerHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("OnlyOwnerHandler X-Role:", r.Header.Get("X-Role"))
+	if r.Header.Get("X-Role") != "owner" {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Only Owner Ednpoint, you are not autenticated!"))
+		return
+	}
+	w.Write([]byte("Only Owner Ednpoint, you are autenticated!"))
 }
